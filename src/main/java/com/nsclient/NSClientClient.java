@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.util.Identifier;
 import org.lwjgl.glfw.GLFW;
 
 public class NSClientClient implements ClientModInitializer {
@@ -26,11 +27,11 @@ public class NSClientClient implements ClientModInitializer {
                 "key.nsclient.open_gui",
                 InputUtil.Type.KEYSYM,
                 ConfigManager.get().clickGuiKeycode,
-                "category.nsclient.general"
+                KeyBinding.Category.create(Identifier.of(NSClient.MOD_ID, "general"))
         ));
 
         HudRenderCallback.EVENT.register((ctx, tickCounter) -> {
-            float tickDelta = tickCounter.getTickDelta(true);
+            float tickDelta = tickCounter.getTickProgress(true);
             HudRenderer.render(ctx, tickDelta);
             CrosshairRenderer.render(ctx);
         });
