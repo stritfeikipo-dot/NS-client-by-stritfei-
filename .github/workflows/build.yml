@@ -19,11 +19,11 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Install Gradle 8.10 explicitly
+      - name: Install Gradle 8.12 explicitly
         run: |
-          wget -q https://services.gradle.org/distributions/gradle-8.10-bin.zip -O /tmp/gradle.zip
+          wget -q https://services.gradle.org/distributions/gradle-8.12-bin.zip -O /tmp/gradle.zip
           unzip -q /tmp/gradle.zip -d /opt
-          echo "/opt/gradle-8.10/bin" >> "$GITHUB_PATH"
+          echo "/opt/gradle-8.12/bin" >> "$GITHUB_PATH"
 
       - name: Verify Gradle version
         run: gradle --version
@@ -33,6 +33,3 @@ jobs:
 
       - name: Upload built jar
         uses: actions/upload-artifact@v4
-        with:
-          name: NS-Client
-          path: build/libs/*.jar
