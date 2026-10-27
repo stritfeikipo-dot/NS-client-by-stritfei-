@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "nsclient",
+  "version": "${version}",
+  "name": "NS Client",
+  "description": "PvP visuals client for Holyworld — HUD, ClickGUI, hit effects. No combat cheats.",
+  "authors": [
+    "stritfei"
+  ],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/nsclient/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.nsclient.NSClientClient"
+    ]
+  },
+  "mixins": [
+    "nsclient.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.17.3",
+    "fabric-api": "*",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  }
+}
