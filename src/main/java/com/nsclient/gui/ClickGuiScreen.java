@@ -4,9 +4,9 @@ import com.nsclient.config.ConfigManager;
 import com.nsclient.config.NSConfig;
 import com.nsclient.gui.widget.SliderWidget;
 import com.nsclient.gui.widget.ToggleSwitchWidget;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -144,7 +144,7 @@ public class ClickGuiScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+    public boolean mouseClicked(Click click, boolean doubled) {
         double mouseX = click.x();
         double mouseY = click.y();
 
@@ -173,7 +173,7 @@ public class ClickGuiScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         double mouseX = click.x();
         for (SliderWidget s : sliders) {
             s.mouseDragged(mouseX);
@@ -182,7 +182,7 @@ public class ClickGuiScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(MouseButtonEvent click) {
+    public boolean mouseReleased(Click click) {
         for (SliderWidget s : sliders) {
             s.mouseReleased();
         }
@@ -191,9 +191,9 @@ public class ClickGuiScreen extends Screen {
     }
 
     @Override
-    public void onClose() {
+    public void close() {
         ConfigManager.save();
-        super.onClose();
+        super.close();
     }
 
     @Override
