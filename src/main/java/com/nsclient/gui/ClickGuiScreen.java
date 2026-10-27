@@ -6,6 +6,7 @@ import com.nsclient.gui.widget.SliderWidget;
 import com.nsclient.gui.widget.ToggleSwitchWidget;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.text.Text;
 
 import java.util.ArrayList;
@@ -143,7 +144,10 @@ public class ClickGuiScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
+        double mouseX = click.x();
+        double mouseY = click.y();
+
         int tabY = panelY + 32;
         for (Category cat : Category.values()) {
             if (mouseX >= panelX + 6 && mouseX <= panelX + sidebarW - 6 && mouseY >= tabY && mouseY <= tabY + 20) {
@@ -165,34 +169,35 @@ public class ClickGuiScreen extends Screen {
                 return true;
             }
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(click, doubled);
     }
 
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
+        double mouseX = click.x();
         for (SliderWidget s : sliders) {
             s.mouseDragged(mouseX);
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(click, deltaX, deltaY);
     }
 
     @Override
-    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         for (SliderWidget s : sliders) {
             s.mouseReleased();
         }
         ConfigManager.save();
-        return super.mouseReleased(mouseX, mouseY, button);
+        return super.mouseReleased(click);
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         ConfigManager.save();
-        super.close();
+        super.onClose();
     }
 
     @Override
     public boolean shouldPause() {
         return false;
     }
-  }
+}
