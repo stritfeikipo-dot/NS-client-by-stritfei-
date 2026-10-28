@@ -13,21 +13,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * NS Client settings menu: a left icon sidebar (Visuals / HUD / Misc) and a
- * right glass panel listing that category's toggles & sliders.
+ * NS Client settings menu: a left icon-tab sidebar (Visuals / HUD / Misc) and a
+ * right glass panel listing that category's settings as "cards".
  * Rebuilds its widget list whenever the category changes.
  */
 public class ClickGuiScreen extends Screen {
 
     private enum Category {
-        VISUALS("Visuals"),
-        HUD("HUD"),
-        MISC("Misc");
+        VISUALS("Visuals", 0),
+        HUD("HUD", 1),
+        MISC("Misc", 2);
 
         final String label;
+        final int iconId;
 
-        Category(String label) {
+        Category(String label, int iconId) {
             this.label = label;
+            this.iconId = iconId;
         }
     }
 
@@ -35,9 +37,13 @@ public class ClickGuiScreen extends Screen {
 
     private final List<ToggleSwitchWidget> toggles = new ArrayList<>();
     private final List<SliderWidget> sliders = new ArrayList<>();
+    /** y-top of each content card, for the alternating card background. */
+    private final List<Integer> cardTops = new ArrayList<>();
 
     private int panelX, panelY, panelW, panelH;
-    private int sidebarW = 70;
+    private final int sidebarW = 58;
+    private final int tabSize = 42;
+    private final int tabGap = 8;
 
     public ClickGuiScreen() {
         super(Text.literal("NS Client"));
@@ -45,8 +51,8 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     protected void init() {
-        panelW = 320;
-        panelH = 220;
+        panelW = 360;
+        panelH = 260;
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         rebuild();
@@ -55,13 +61,14 @@ public class ClickGuiScreen extends Screen {
     private void rebuild() {
         toggles.clear();
         sliders.clear();
+        cardTops.clear();
         NSConfig cfg = ConfigManager.get();
 
-        int contentX = panelX + sidebarW + 16;
-        int contentY = panelY + 16;
-        int rowH = 24;
+        int contentX = panelX + sidebarW + 18;
+        int contentY = panelY + 44;
+        int rowH = 27;
         int row = 0;
-        int widgetW = panelW - sidebarW - 32;
+        int widgetW = panelW - sidebarW - 36;
 
         switch (current) {
             case VISUALS -> {
@@ -94,42 +101,32 @@ public class ClickGuiScreen extends Screen {
     private void addToggle(int x, int y, int row, int rowH, int w, String label,
                             java.util.function.BooleanSupplier getter, java.util.function.Consumer<Boolean> setter) {
         ToggleSwitchWidget t = new ToggleSwitchWidget(label, getter, setter);
-        t.x = x;
-        t.y = y + row * rowH;
-        t.width = w;
+        t.x = x + 10;
+        t.y = y + row * rowH + 5;
+        t.width = w - 20;
         toggles.add(t);
+        cardTops.add(y + row * rowH);
     }
 
     private void addSlider(int x, int y, int row, int rowH, int w, String label, double min, double max,
                             java.util.function.DoubleSupplier getter, java.util.function.DoubleConsumer setter) {
         SliderWidget s = new SliderWidget(label, min, max, getter, setter);
-        s.x = x;
-        s.y = y + row * rowH;
-        s.width = w;
+        s.x = x + 10;
+        s.y = y + row * rowH + 5;
+        s.width = w - 20;
         sliders.add(s);
+        cardTops.add(y + row * rowH);
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        Theme.glassPanel(ctx, panelX, panelY, panelW, panelH, 10);
+        // outer glow behind the whole panel
+        RoundRect.fill(ctx, panelX - 2, panelY - 2, panelX + panelW + 2, panelY + panelH + 2, 16, Theme.accentWithAlpha(25));
+        Theme.glassPanel(ctx, panelX, panelY, panelW, panelH, 14);
 
-        // Sidebar
-        Theme.glassPanel(ctx, panelX, panelY, sidebarW, panelH, 10);
-        ctx.drawText(this.textRenderer, Text.literal("NS Client"), panelX + 10, panelY + 10, Theme.accent() | 0xFF000000, true);
-
-        int tabY = panelY + 32;
-        for (Category cat : Category.values()) {
-            boolean selected = cat == current;
-            int bg = selected ? Theme.accentWithAlpha(90) : 0x00000000;
-            RoundRect.fill(ctx, panelX + 6, tabY, panelX + sidebarW - 6, tabY + 20, 6, bg);
-            int color = selected ? Theme.TEXT : Theme.TEXT_DIM;
-            ctx.drawText(this.textRenderer, Text.literal(cat.label), panelX + 14, tabY + 6, color, false);
-            tabY += 24;
-        }
-
-        // Content header
-        ctx.drawText(this.textRenderer, Text.literal(current.label), panelX + sidebarW + 16, panelY + 10,
-                Theme.accent() | 0xFF000000, true);
+        renderSidebar(ctx, mouseX, mouseY);
+        renderHeader(ctx, mouseX, mouseY);
+        renderCards(ctx);
 
         for (ToggleSwitchWidget t : toggles) {
             t.render(ctx);
@@ -141,19 +138,107 @@ public class ClickGuiScreen extends Screen {
         super.render(ctx, mouseX, mouseY, delta);
     }
 
+    private void renderSidebar(DrawContext ctx, int mouseX, int mouseY) {
+        Theme.glassPanel(ctx, panelX, panelY, sidebarW, panelH, 14);
+
+        // brand mark
+        int brandCx = panelX + sidebarW / 2;
+        RoundRect.fill(ctx, brandCx - 12, panelY + 14, brandCx + 12, panelY + 32, 6, Theme.accentWithAlpha(200));
+        ctx.drawText(this.textRenderer, Text.literal("NS"), brandCx - 7, panelY + 19, 0xFF0A0614, false);
+
+        int tabY = panelY + 48;
+        int tabX = panelX + (sidebarW - tabSize) / 2;
+        for (Category cat : Category.values()) {
+            boolean selected = cat == current;
+            boolean hovered = !selected && isInside(mouseX, mouseY, tabX, tabY, tabSize, tabSize);
+
+            if (selected) {
+                RoundRect.fill(ctx, tabX - 2, tabY - 2, tabX + tabSize + 2, tabY + tabSize + 2, 12, Theme.accentWithAlpha(45));
+            }
+            int bg = selected ? Theme.accentWithAlpha(130) : hovered ? 0x2AFFFFFF : 0x14FFFFFF;
+            RoundRect.fill(ctx, tabX, tabY, tabX + tabSize, tabY + tabSize, 10, bg);
+            if (selected) {
+                RoundRect.outline(ctx, tabX, tabY, tabX + tabSize, tabY + tabSize, 10, Theme.accent() | 0xFF000000);
+            }
+
+            drawCategoryIcon(ctx, cat, tabX + tabSize / 2, tabY + tabSize / 2 - 5, selected);
+            int labelColor = selected ? Theme.TEXT : Theme.TEXT_DIM;
+            int labelW = this.textRenderer.getWidth(cat.label);
+            ctx.drawText(this.textRenderer, Text.literal(cat.label), tabX + tabSize / 2 - labelW / 2, tabY + tabSize - 11, labelColor, false);
+
+            tabY += tabSize + tabGap;
+        }
+    }
+
+    private void drawCategoryIcon(DrawContext ctx, Category cat, int cx, int cy, boolean active) {
+        int color = active ? (Theme.accent() | 0xFF000000) : Theme.TEXT_DIM;
+        switch (cat.iconId) {
+            case 0 -> { // Visuals: eye
+                RoundRect.fill(ctx, cx - 7, cy - 3, cx + 7, cy + 3, 3, color);
+                ctx.fill(cx - 1, cy - 1, cx + 1, cy + 1, active ? 0xFF0A0614 : 0xFF2A2338);
+            }
+            case 1 -> { // HUD: little screen
+                RoundRect.outline(ctx, cx - 7, cy - 5, cx + 7, cy + 5, 2, color);
+                ctx.fill(cx - 4, cy - 2, cx - 1, cy + 1, color);
+            }
+            default -> { // Misc: three dots
+                ctx.fill(cx - 6, cy - 1, cx - 4, cy + 1, color);
+                ctx.fill(cx - 1, cy - 1, cx + 1, cy + 1, color);
+                ctx.fill(cx + 4, cy - 1, cx + 6, cy + 1, color);
+            }
+        }
+    }
+
+    private void renderHeader(DrawContext ctx, int mouseX, int mouseY) {
+        int hx = panelX + sidebarW + 18;
+        ctx.drawText(this.textRenderer, Text.literal(current.label), hx, panelY + 16, Theme.accent() | 0xFF000000, true);
+        ctx.drawText(this.textRenderer, Text.literal("NS Client settings"), hx, panelY + 28, Theme.TEXT_DIM, false);
+        ctx.fillGradient(hx, panelY + 40, panelX + panelW - 16, panelY + 41, Theme.BORDER, 0x00000000);
+
+        int closeCx = panelX + panelW - 20;
+        int closeCy = panelY + 20;
+        boolean closeHovered = isInside(mouseX, mouseY, closeCx - 10, closeCy - 10, 20, 20);
+        RoundRect.fill(ctx, closeCx - 10, closeCy - 10, closeCx + 10, closeCy + 10, 10, closeHovered ? Theme.accentWithAlpha(160) : 0x1AFFFFFF);
+        ctx.drawText(this.textRenderer, Text.literal("x"), closeCx - 2, closeCy - 4, closeHovered ? 0xFF0A0614 : Theme.TEXT_DIM, false);
+    }
+
+    private void renderCards(DrawContext ctx) {
+        int cardX = panelX + sidebarW + 16;
+        int cardW = panelW - sidebarW - 32;
+        for (int i = 0; i < cardTops.size(); i++) {
+            int top = cardTops.get(i);
+            int fill = (i % 2 == 0) ? Theme.BG_DARK_LIGHT : 0x00000000;
+            if (fill != 0) {
+                RoundRect.fill(ctx, cardX, top, cardX + cardW, top + 27 - 3, 6, fill);
+            }
+        }
+    }
+
+    private boolean isInside(int px, int py, int x, int y, int w, int h) {
+        return px >= x && px <= x + w && py >= y && py <= y + h;
+    }
+
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
         double mouseX = click.x();
         double mouseY = click.y();
 
-        int tabY = panelY + 32;
+        int closeCx = panelX + panelW - 20;
+        int closeCy = panelY + 20;
+        if (isInside((int) mouseX, (int) mouseY, closeCx - 10, closeCy - 10, 20, 20)) {
+            this.close();
+            return true;
+        }
+
+        int tabY = panelY + 48;
+        int tabX = panelX + (sidebarW - tabSize) / 2;
         for (Category cat : Category.values()) {
-            if (mouseX >= panelX + 6 && mouseX <= panelX + sidebarW - 6 && mouseY >= tabY && mouseY <= tabY + 20) {
+            if (isInside((int) mouseX, (int) mouseY, tabX, tabY, tabSize, tabSize)) {
                 current = cat;
                 rebuild();
                 return true;
             }
-            tabY += 24;
+            tabY += tabSize + tabGap;
         }
 
         for (ToggleSwitchWidget t : toggles) {
@@ -198,4 +283,4 @@ public class ClickGuiScreen extends Screen {
     public boolean shouldPause() {
         return false;
     }
-}
+                     }
