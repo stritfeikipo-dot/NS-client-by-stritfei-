@@ -13,9 +13,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * NS Client settings menu: a left icon-tab sidebar (Visuals / HUD / Misc) and a
- * right glass panel listing that category's settings as "cards".
- * Rebuilds its widget list whenever the category changes.
+ * NS Client settings menu, styled after the PulseVisuals layout the person
+ * referenced: a floating "NS Client" wordmark above the panel, a plain
+ * breadcrumb-style category row ("Visuals / HUD / Misc") inside the panel,
+ * a 2-column grid of flat dark cards (label + simple toggle), and a row of
+ * round category icon-buttons floating below the panel instead of a sidebar.
  */
 public class ClickGuiScreen extends Screen {
 
@@ -37,96 +39,130 @@ public class ClickGuiScreen extends Screen {
 
     private final List<ToggleSwitchWidget> toggles = new ArrayList<>();
     private final List<SliderWidget> sliders = new ArrayList<>();
-    /** y-top of each content card, for the alternating card background. */
-    private final List<Integer> cardTops = new ArrayList<>();
+    private final List<int[]> cardRects = new ArrayList<>(); // {x, y, w, h} for card backgrounds
 
     private int panelX, panelY, panelW, panelH;
-    private final int sidebarW = 58;
-    private final int tabSize = 42;
-    private final int tabGap = 8;
+    private static final int COLS = 2;
+    private static final int CARD_H = 46;
+    private static final int CARD_GAP = 10;
+    private static final int PAD = 18;
+    private static final int LOGO_H = 30;
+    private static final int TABS_H = 34;
+    private static final int NAV_GAP = 14;
+    private static final int NAV_BTN = 40;
 
     public ClickGuiScreen() {
         super(Text.literal("NS Client"));
     }
 
+    private record ToggleBuild(String label, java.util.function.BooleanSupplier getter, java.util.function.Consumer<Boolean> setter) {}
+
+    private record SliderBuild(String label, double min, double max, java.util.function.DoubleSupplier getter, java.util.function.DoubleConsumer setter) {}
+
     @Override
     protected void init() {
-        panelW = 360;
-        panelH = 260;
+        panelW = 520;
+        List<ToggleBuild> toggleBuilds = new ArrayList<>();
+        List<SliderBuild> sliderBuilds = new ArrayList<>();
+        collectItems(toggleBuilds, sliderBuilds);
+
+        int itemCount = toggleBuilds.size() + sliderBuilds.size();
+        int rows = (int) Math.ceil(Math.max(itemCount, 1) / (double) COLS);
+        panelH = TABS_H + PAD + rows * CARD_H + (rows - 1) * CARD_GAP + PAD;
+        int totalH = LOGO_H + 10 + panelH + NAV_GAP + NAV_BTN;
         panelX = (this.width - panelW) / 2;
-        panelY = (this.height - panelH) / 2;
-        rebuild();
+        panelY = (this.height - totalH) / 2 + LOGO_H + 10;
+
+        rebuild(toggleBuilds, sliderBuilds);
     }
 
-    private void rebuild() {
-        toggles.clear();
-        sliders.clear();
-        cardTops.clear();
+    private void collectItems(List<ToggleBuild> toggleBuilds, List<SliderBuild> sliderBuilds) {
         NSConfig cfg = ConfigManager.get();
-
-        int contentX = panelX + sidebarW + 18;
-        int contentY = panelY + 44;
-        int rowH = 27;
-        int row = 0;
-        int widgetW = panelW - sidebarW - 36;
-
         switch (current) {
             case VISUALS -> {
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Liquid glass style", () -> cfg.liquidGlass, v -> cfg.liquidGlass = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Custom crosshair", () -> cfg.customCrosshair, v -> cfg.customCrosshair = v);
-                addSlider(contentX, contentY, row++, rowH, widgetW, "Crosshair size", 2, 16, () -> cfg.crosshairSize, v -> cfg.crosshairSize = (float) v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Hit marker", () -> cfg.hitMarker, v -> cfg.hitMarker = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Hit particles", () -> cfg.hitParticles, v -> cfg.hitParticles = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Combo counter", () -> cfg.comboCounter, v -> cfg.comboCounter = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Kill effects", () -> cfg.killEffects, v -> cfg.killEffects = v);
+                toggleBuilds.add(new ToggleBuild("Liquid glass style", () -> cfg.liquidGlass, v -> cfg.liquidGlass = v));
+                toggleBuilds.add(new ToggleBuild("Custom crosshair", () -> cfg.customCrosshair, v -> cfg.customCrosshair = v));
+                sliderBuilds.add(new SliderBuild("Crosshair size", 2, 16, () -> cfg.crosshairSize, v -> cfg.crosshairSize = (float) v));
+                toggleBuilds.add(new ToggleBuild("Hit marker", () -> cfg.hitMarker, v -> cfg.hitMarker = v));
+                toggleBuilds.add(new ToggleBuild("Hit particles", () -> cfg.hitParticles, v -> cfg.hitParticles = v));
+                toggleBuilds.add(new ToggleBuild("Combo counter", () -> cfg.comboCounter, v -> cfg.comboCounter = v));
+                toggleBuilds.add(new ToggleBuild("Kill effects", () -> cfg.killEffects, v -> cfg.killEffects = v));
             }
             case HUD -> {
-                addToggle(contentX, contentY, row++, rowH, widgetW, "HUD enabled", () -> cfg.hudEnabled, v -> cfg.hudEnabled = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "FPS", () -> cfg.showFps, v -> cfg.showFps = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "CPS", () -> cfg.showCps, v -> cfg.showCps = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Ping", () -> cfg.showPing, v -> cfg.showPing = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Coordinates", () -> cfg.showCoords, v -> cfg.showCoords = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Watermark", () -> cfg.showWatermark, v -> cfg.showWatermark = v);
-                addSlider(contentX, contentY, row++, rowH, widgetW, "HUD scale", 0.5, 2.0, () -> (double) cfg.hudScale, v -> cfg.hudScale = (float) v);
+                toggleBuilds.add(new ToggleBuild("HUD enabled", () -> cfg.hudEnabled, v -> cfg.hudEnabled = v));
+                toggleBuilds.add(new ToggleBuild("FPS", () -> cfg.showFps, v -> cfg.showFps = v));
+                toggleBuilds.add(new ToggleBuild("CPS", () -> cfg.showCps, v -> cfg.showCps = v));
+                toggleBuilds.add(new ToggleBuild("Ping", () -> cfg.showPing, v -> cfg.showPing = v));
+                toggleBuilds.add(new ToggleBuild("Coordinates", () -> cfg.showCoords, v -> cfg.showCoords = v));
+                toggleBuilds.add(new ToggleBuild("Watermark", () -> cfg.showWatermark, v -> cfg.showWatermark = v));
+                sliderBuilds.add(new SliderBuild("HUD scale", 0.5, 2.0, () -> (double) cfg.hudScale, v -> cfg.hudScale = (float) v));
             }
             case MISC -> {
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Armor HUD", () -> cfg.showArmorHud, v -> cfg.showArmorHud = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Potion HUD", () -> cfg.showPotionHud, v -> cfg.showPotionHud = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Target HUD", () -> cfg.showTargetHud, v -> cfg.showTargetHud = v);
-                addToggle(contentX, contentY, row++, rowH, widgetW, "Keystrokes", () -> cfg.showKeystrokes, v -> cfg.showKeystrokes = v);
+                toggleBuilds.add(new ToggleBuild("Armor HUD", () -> cfg.showArmorHud, v -> cfg.showArmorHud = v));
+                toggleBuilds.add(new ToggleBuild("Potion HUD", () -> cfg.showPotionHud, v -> cfg.showPotionHud = v));
+                toggleBuilds.add(new ToggleBuild("Target HUD", () -> cfg.showTargetHud, v -> cfg.showTargetHud = v));
+                toggleBuilds.add(new ToggleBuild("Keystrokes", () -> cfg.showKeystrokes, v -> cfg.showKeystrokes = v));
             }
         }
     }
 
-    private void addToggle(int x, int y, int row, int rowH, int w, String label,
-                            java.util.function.BooleanSupplier getter, java.util.function.Consumer<Boolean> setter) {
-        ToggleSwitchWidget t = new ToggleSwitchWidget(label, getter, setter);
-        t.x = x + 10;
-        t.y = y + row * rowH + 5;
-        t.width = w - 20;
-        toggles.add(t);
-        cardTops.add(y + row * rowH);
+    private void rebuild(List<ToggleBuild> toggleBuilds, List<SliderBuild> sliderBuilds) {
+        toggles.clear();
+        sliders.clear();
+        cardRects.clear();
+
+        int cardW = (panelW - PAD * 2 - CARD_GAP * (COLS - 1)) / COLS;
+        int gridTop = panelY + TABS_H + PAD;
+        int itemCount = toggleBuilds.size() + sliderBuilds.size();
+        for (int i = 0; i < itemCount; i++) {
+            int col = i % COLS;
+            int row = i / COLS;
+            int cx = panelX + PAD + col * (cardW + CARD_GAP);
+            int cy = gridTop + row * (CARD_H + CARD_GAP);
+            cardRects.add(new int[]{cx, cy, cardW, CARD_H});
+        }
+
+        int idx = 0;
+        for (ToggleBuild b : toggleBuilds) {
+            int[] r = cardRects.get(idx++);
+            ToggleSwitchWidget t = new ToggleSwitchWidget(b.label(), b.getter(), b.setter());
+            t.x = r[0] + 14;
+            t.y = r[1];
+            t.height = r[3];
+            t.width = r[2] - 28;
+            toggles.add(t);
+        }
+        for (SliderBuild b : sliderBuilds) {
+            int[] r = cardRects.get(idx++);
+            SliderWidget s = new SliderWidget(b.label(), b.min(), b.max(), b.getter(), b.setter());
+            s.x = r[0] + 14;
+            s.y = r[1] + (r[3] - 26) / 2;
+            s.width = r[2] - 28;
+            sliders.add(s);
+        }
     }
 
-    private void addSlider(int x, int y, int row, int rowH, int w, String label, double min, double max,
-                            java.util.function.DoubleSupplier getter, java.util.function.DoubleConsumer setter) {
-        SliderWidget s = new SliderWidget(label, min, max, getter, setter);
-        s.x = x + 10;
-        s.y = y + row * rowH + 5;
-        s.width = w - 20;
-        sliders.add(s);
-        cardTops.add(y + row * rowH);
+    private void rebuild() {
+        List<ToggleBuild> toggleBuilds = new ArrayList<>();
+        List<SliderBuild> sliderBuilds = new ArrayList<>();
+        collectItems(toggleBuilds, sliderBuilds);
+        rebuild(toggleBuilds, sliderBuilds);
     }
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        // outer glow behind the whole panel
-        RoundRect.fill(ctx, panelX - 2, panelY - 2, panelX + panelW + 2, panelY + panelH + 2, 16, Theme.accentWithAlpha(25));
+        // Floating wordmark above the panel
+        String title = "NS Client";
+        int titleW = this.textRenderer.getWidth(title);
+        int logoY = panelY - LOGO_H - 10;
+        RoundRect.fill(ctx, this.width / 2 - 10, logoY + 6, this.width / 2 + titleW / 2 + 14, logoY + 24, 7, Theme.accentWithAlpha(220));
+        ctx.drawText(this.textRenderer, Text.literal(title), this.width / 2 - 10 + 10, logoY + 12,
+                0xFF0A0614, false);
+
         Theme.glassPanel(ctx, panelX, panelY, panelW, panelH, 14);
 
-        renderSidebar(ctx, mouseX, mouseY);
-        renderHeader(ctx, mouseX, mouseY);
-        renderCards(ctx);
+        renderTabsRow(ctx, mouseX, mouseY);
+        renderCards(ctx, mouseX, mouseY);
 
         for (ToggleSwitchWidget t : toggles) {
             t.render(ctx);
@@ -135,47 +171,70 @@ public class ClickGuiScreen extends Screen {
             s.render(ctx);
         }
 
+        renderNavRow(ctx, mouseX, mouseY);
+
         super.render(ctx, mouseX, mouseY, delta);
     }
 
-    private void renderSidebar(DrawContext ctx, int mouseX, int mouseY) {
-        Theme.glassPanel(ctx, panelX, panelY, sidebarW, panelH, 14);
-
-        // brand mark
-        int brandCx = panelX + sidebarW / 2;
-        RoundRect.fill(ctx, brandCx - 12, panelY + 14, brandCx + 12, panelY + 32, 6, Theme.accentWithAlpha(200));
-        ctx.drawText(this.textRenderer, Text.literal("NS"), brandCx - 7, panelY + 19, 0xFF0A0614, false);
-
-        int tabY = panelY + 48;
-        int tabX = panelX + (sidebarW - tabSize) / 2;
-        for (Category cat : Category.values()) {
+    private void renderTabsRow(DrawContext ctx, int mouseX, int mouseY) {
+        int tx = panelX + PAD;
+        int ty = panelY + 12;
+        Category[] all = Category.values();
+        for (int i = 0; i < all.length; i++) {
+            Category cat = all[i];
             boolean selected = cat == current;
-            boolean hovered = !selected && isInside(mouseX, mouseY, tabX, tabY, tabSize, tabSize);
-
-            if (selected) {
-                RoundRect.fill(ctx, tabX - 2, tabY - 2, tabX + tabSize + 2, tabY + tabSize + 2, 12, Theme.accentWithAlpha(45));
+            int color = selected ? Theme.TEXT : Theme.TEXT_DIM;
+            ctx.drawText(this.textRenderer, Text.literal(cat.label), tx, ty, color, false);
+            tx += this.textRenderer.getWidth(cat.label);
+            if (i < all.length - 1) {
+                tx += 6;
+                ctx.drawText(this.textRenderer, Text.literal("/"), tx, ty, 0xFF4A4458, false);
+                tx += this.textRenderer.getWidth("/") + 6;
             }
-            int bg = selected ? Theme.accentWithAlpha(130) : hovered ? 0x2AFFFFFF : 0x14FFFFFF;
-            RoundRect.fill(ctx, tabX, tabY, tabX + tabSize, tabY + tabSize, 10, bg);
-            if (selected) {
-                RoundRect.outline(ctx, tabX, tabY, tabX + tabSize, tabY + tabSize, 10, Theme.accent() | 0xFF000000);
-            }
+        }
 
-            drawCategoryIcon(ctx, cat, tabX + tabSize / 2, tabY + tabSize / 2 - 5, selected);
-            int labelColor = selected ? Theme.TEXT : Theme.TEXT_DIM;
-            int labelW = this.textRenderer.getWidth(cat.label);
-            ctx.drawText(this.textRenderer, Text.literal(cat.label), tabX + tabSize / 2 - labelW / 2, tabY + tabSize - 11, labelColor, false);
+        int closeCx = panelX + panelW - 18;
+        int closeCy = panelY + 18;
+        boolean closeHovered = isInside(mouseX, mouseY, closeCx - 9, closeCy - 9, 18, 18);
+        ctx.drawText(this.textRenderer, Text.literal("x"), closeCx - 2, closeCy - 4,
+                closeHovered ? (Theme.accent() | 0xFF000000) : Theme.TEXT_DIM, false);
 
-            tabY += tabSize + tabGap;
+        ctx.fillGradient(panelX + PAD, panelY + TABS_H - 2, panelX + panelW - PAD, panelY + TABS_H - 1, Theme.BORDER, 0x00000000);
+    }
+
+    private void renderCards(DrawContext ctx, int mouseX, int mouseY) {
+        for (int[] r : cardRects) {
+            boolean hovered = isInside(mouseX, mouseY, r[0], r[1], r[2], r[3]);
+            int bg = hovered ? Theme.BG_DARK_LIGHT : 0x40120A1F;
+            RoundRect.fill(ctx, r[0], r[1], r[0] + r[2], r[1] + r[3], 9, bg);
+        }
+    }
+
+    private void renderNavRow(DrawContext ctx, int mouseX, int mouseY) {
+        Category[] all = Category.values();
+        int totalW = all.length * NAV_BTN + (all.length - 1) * 10;
+        int nx = this.width / 2 - totalW / 2;
+        int ny = panelY + panelH + NAV_GAP;
+
+        RoundRect.fill(ctx, nx - 10, ny - 8, nx + totalW + 10, ny + NAV_BTN + 8, 16, Theme.BG_DARK);
+        RoundRect.outline(ctx, nx - 10, ny - 8, nx + totalW + 10, ny + NAV_BTN + 8, 16, Theme.BORDER);
+
+        for (Category cat : all) {
+            boolean selected = cat == current;
+            boolean hovered = !selected && isInside(mouseX, mouseY, nx, ny, NAV_BTN, NAV_BTN);
+            int bg = selected ? (Theme.accent() | 0xFF000000) : hovered ? 0x2AFFFFFF : 0x00000000;
+            RoundRect.fill(ctx, nx, ny, nx + NAV_BTN, ny + NAV_BTN, 12, bg);
+            drawCategoryIcon(ctx, cat, nx + NAV_BTN / 2, ny + NAV_BTN / 2, selected);
+            nx += NAV_BTN + 10;
         }
     }
 
     private void drawCategoryIcon(DrawContext ctx, Category cat, int cx, int cy, boolean active) {
-        int color = active ? (Theme.accent() | 0xFF000000) : Theme.TEXT_DIM;
+        int color = active ? 0xFF0A0614 : Theme.TEXT_DIM;
         switch (cat.iconId) {
             case 0 -> { // Visuals: eye
                 RoundRect.fill(ctx, cx - 7, cy - 3, cx + 7, cy + 3, 3, color);
-                ctx.fill(cx - 1, cy - 1, cx + 1, cy + 1, active ? 0xFF0A0614 : 0xFF2A2338);
+                ctx.fill(cx - 1, cy - 1, cx + 1, cy + 1, active ? (Theme.accent() | 0xFF000000) : 0xFF2A2338);
             }
             case 1 -> { // HUD: little screen
                 RoundRect.outline(ctx, cx - 7, cy - 5, cx + 7, cy + 5, 2, color);
@@ -189,56 +248,33 @@ public class ClickGuiScreen extends Screen {
         }
     }
 
-    private void renderHeader(DrawContext ctx, int mouseX, int mouseY) {
-        int hx = panelX + sidebarW + 18;
-        ctx.drawText(this.textRenderer, Text.literal(current.label), hx, panelY + 16, Theme.accent() | 0xFF000000, true);
-        ctx.drawText(this.textRenderer, Text.literal("NS Client settings"), hx, panelY + 28, Theme.TEXT_DIM, false);
-        ctx.fillGradient(hx, panelY + 40, panelX + panelW - 16, panelY + 41, Theme.BORDER, 0x00000000);
-
-        int closeCx = panelX + panelW - 20;
-        int closeCy = panelY + 20;
-        boolean closeHovered = isInside(mouseX, mouseY, closeCx - 10, closeCy - 10, 20, 20);
-        RoundRect.fill(ctx, closeCx - 10, closeCy - 10, closeCx + 10, closeCy + 10, 10, closeHovered ? Theme.accentWithAlpha(160) : 0x1AFFFFFF);
-        ctx.drawText(this.textRenderer, Text.literal("x"), closeCx - 2, closeCy - 4, closeHovered ? 0xFF0A0614 : Theme.TEXT_DIM, false);
-    }
-
-    private void renderCards(DrawContext ctx) {
-        int cardX = panelX + sidebarW + 16;
-        int cardW = panelW - sidebarW - 32;
-        for (int i = 0; i < cardTops.size(); i++) {
-            int top = cardTops.get(i);
-            int fill = (i % 2 == 0) ? Theme.BG_DARK_LIGHT : 0x00000000;
-            if (fill != 0) {
-                RoundRect.fill(ctx, cardX, top, cardX + cardW, top + 27 - 3, 6, fill);
-            }
-        }
-    }
-
     private boolean isInside(int px, int py, int x, int y, int w, int h) {
         return px >= x && px <= x + w && py >= y && py <= y + h;
     }
 
     @Override
     public boolean mouseClicked(Click click, boolean doubled) {
-        double mouseX = click.x();
-        double mouseY = click.y();
+        int mouseX = (int) click.x();
+        int mouseY = (int) click.y();
 
-        int closeCx = panelX + panelW - 20;
-        int closeCy = panelY + 20;
-        if (isInside((int) mouseX, (int) mouseY, closeCx - 10, closeCy - 10, 20, 20)) {
+        int closeCx = panelX + panelW - 18;
+        int closeCy = panelY + 18;
+        if (isInside(mouseX, mouseY, closeCx - 9, closeCy - 9, 18, 18)) {
             this.close();
             return true;
         }
 
-        int tabY = panelY + 48;
-        int tabX = panelX + (sidebarW - tabSize) / 2;
-        for (Category cat : Category.values()) {
-            if (isInside((int) mouseX, (int) mouseY, tabX, tabY, tabSize, tabSize)) {
+        Category[] all = Category.values();
+        int totalW = all.length * NAV_BTN + (all.length - 1) * 10;
+        int nx = this.width / 2 - totalW / 2;
+        int ny = panelY + panelH + NAV_GAP;
+        for (Category cat : all) {
+            if (isInside(mouseX, mouseY, nx, ny, NAV_BTN, NAV_BTN)) {
                 current = cat;
-                rebuild();
+                init();
                 return true;
             }
-            tabY += tabSize + tabGap;
+            nx += NAV_BTN + 10;
         }
 
         for (ToggleSwitchWidget t : toggles) {
@@ -283,4 +319,4 @@ public class ClickGuiScreen extends Screen {
     public boolean shouldPause() {
         return false;
     }
-                     }
+                      }
