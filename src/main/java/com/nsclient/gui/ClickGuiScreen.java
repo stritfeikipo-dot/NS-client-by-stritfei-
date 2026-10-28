@@ -111,8 +111,6 @@ public class ClickGuiScreen extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-        this.renderBackground(ctx, mouseX, mouseY, delta);
-
         Theme.glassPanel(ctx, panelX, panelY, panelW, panelH, 10);
 
         // Sidebar
