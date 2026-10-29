@@ -2,6 +2,7 @@ package com.nsclient.hud;
 
 import com.nsclient.config.ConfigManager;
 import com.nsclient.config.NSConfig;
+import com.nsclient.gui.RoundRect;
 import com.nsclient.gui.Theme;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -10,7 +11,7 @@ import net.minecraft.text.Text;
 
 import java.util.List;
 
-/** Draws the top-left HUD pill stack every frame. Registered from the client entrypoint. */
+/** Draws the top-center HUD pill stack every frame. Registered from the client entrypoint. */
 public final class HudRenderer {
 
     private HudRenderer() {
@@ -24,7 +25,7 @@ public final class HudRenderer {
     public static void render(DrawContext ctx, float tickDelta) {
         MinecraftClient client = MinecraftClient.getInstance();
         NSConfig cfg = ConfigManager.get();
-        if (!cfg.hudEnabled || client.player == null || client.options.hudHidden) {
+        if (!cfg.hudEnabled || client.player == null || client.options.hudHidden || client.currentScreen != null) {
             return;
         }
 
@@ -36,21 +37,37 @@ public final class HudRenderer {
                 cfg.showWatermark,
         };
         List<List<HudElement>> groups = HudGroup.resolveGroups(enabled);
+        if (groups.isEmpty()) {
+            return;
+        }
 
-        int x = (int) cfg.hudX;
-        int y = (int) cfg.hudY;
+        int screenW = client.getWindow().getScaledWidth();
+        int y = 8;
 
         for (List<HudElement> group : groups) {
             int width = pillWidth(client, group);
+            int x = (screenW - width) / 2;
+
+            // soft drop shadow for depth
+            RoundRect.fill(ctx, x + 1, y + 2, x + 1 + width, y + 2 + ROW_HEIGHT, ROW_HEIGHT / 2, 0x33000000);
             Theme.pill(ctx, x, y, width, ROW_HEIGHT);
 
             int textX = x + PAD_X;
             int textY = y + (ROW_HEIGHT - 8) / 2;
-            for (HudElement element : group) {
+            for (int i = 0; i < group.size(); i++) {
+                HudElement element = group.get(i);
                 String value = formatValue(client, element);
-                String label = element.icon + " " + value;
-                ctx.drawText(client.textRenderer, Text.literal(label), textX, textY, Theme.TEXT, true);
-                textX += client.textRenderer.getWidth(label) + 10;
+                int labelColor = Theme.accent() | 0xFF000000;
+                String iconText = element.icon;
+                ctx.drawText(client.textRenderer, Text.literal(iconText), textX, textY, labelColor, true);
+                textX += client.textRenderer.getWidth(iconText) + 4;
+                ctx.drawText(client.textRenderer, Text.literal(value), textX, textY, Theme.TEXT, true);
+                textX += client.textRenderer.getWidth(value) + 8;
+
+                if (i < group.size() - 1) {
+                    ctx.fill(textX, y + 4, textX + 1, y + ROW_HEIGHT - 4, 0x40FFFFFF);
+                    textX += 9;
+                }
             }
             y += ROW_HEIGHT + GAP;
         }
@@ -59,10 +76,13 @@ public final class HudRenderer {
     private static int pillWidth(MinecraftClient client, List<HudElement> group) {
         int width = PAD_X * 2;
         for (int i = 0; i < group.size(); i++) {
-            String label = group.get(i).icon + " " + formatValue(client, group.get(i));
-            width += client.textRenderer.getWidth(label);
+            HudElement element = group.get(i);
+            String value = formatValue(client, element);
+            width += client.textRenderer.getWidth(element.icon) + 4 + client.textRenderer.getWidth(value);
             if (i < group.size() - 1) {
-                width += 10;
+                width += 17;
+            } else {
+                width += 8;
             }
         }
         return width;
