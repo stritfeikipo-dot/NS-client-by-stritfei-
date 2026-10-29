@@ -183,9 +183,13 @@ public class ClickGuiScreen extends Screen {
         for (int i = 0; i < all.length; i++) {
             Category cat = all[i];
             boolean selected = cat == current;
-            int color = selected ? Theme.TEXT : Theme.TEXT_DIM;
-            ctx.drawText(this.textRenderer, Text.literal(cat.label), tx, ty, color, false);
-            tx += this.textRenderer.getWidth(cat.label);
+            int color = selected ? (Theme.accent() | 0xFF000000) : Theme.TEXT_DIM;
+            ctx.drawText(this.textRenderer, Text.literal(cat.label), tx, ty, color, true);
+            int labelW = this.textRenderer.getWidth(cat.label);
+            if (selected) {
+                ctx.fill(tx, ty + 10, tx + labelW, ty + 11, Theme.accent() | 0xFF000000);
+            }
+            tx += labelW;
             if (i < all.length - 1) {
                 tx += 6;
                 ctx.drawText(this.textRenderer, Text.literal("/"), tx, ty, 0xFF4A4458, false);
@@ -205,8 +209,10 @@ public class ClickGuiScreen extends Screen {
     private void renderCards(DrawContext ctx, int mouseX, int mouseY) {
         for (int[] r : cardRects) {
             boolean hovered = isInside(mouseX, mouseY, r[0], r[1], r[2], r[3]);
-            int bg = hovered ? Theme.BG_DARK_LIGHT : 0x40120A1F;
-            RoundRect.fill(ctx, r[0], r[1], r[0] + r[2], r[1] + r[3], 9, bg);
+            RoundRect.fill(ctx, r[0], r[1], r[0] + r[2], r[1] + r[3], 8, Theme.BG_DARK_LIGHT);
+            if (hovered) {
+                RoundRect.outline(ctx, r[0], r[1], r[0] + r[2], r[1] + r[3], 8, Theme.accentWithAlpha(90));
+            }
         }
     }
 
@@ -319,4 +325,5 @@ public class ClickGuiScreen extends Screen {
     public boolean shouldPause() {
         return false;
     }
-                      }
+    }
+             
